@@ -1,21 +1,12 @@
-# from typing import Union
-
 from fastapi import FastAPI, status
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from database import Base, engine, ToDo
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 
-# Crea un motor de base de datos SQLite con el nombre del archivo "todooo.db"
-engine = create_engine("sqlite:///todooo.db")
-
-# Crea una clase base declarativa para las tablas de la base de datos
-Base = declarative_base()
-
-#Define la clase To Do heredando de Base
-class ToDo(Base):
-    __tablename__ = "todos"
-    id = Column(Integer, primary_key=True)
-    task = Column(String(50))
+# Creando el modelo base de ToDoRequest
+class ToDoRequest(BaseModel):
+    task: str
 
 
 # Crea las tablas necesarias en la base de datos
@@ -30,9 +21,26 @@ async def read_root():
     return "todooo"
 
 
-@app.post("/todo")
-def create_todo():
-    return "create todo item"
+@app.post("/todo", status_code=status.HTTP_201_CREATED)
+def create_todo(todo: ToDoRequest):
+
+    # creando una nueva sesion en la base de datos
+    session = Session(bind=engine, expire_on_commit=False)
+
+    # creando una instancia del modelo de todo database
+    tododb = ToDo(task=todo.task)
+
+    # agregando una sesión y confirmala
+    session.add(tododb)
+    session.commit()
+
+    # Recolectar el id del objeto a la base de datos
+    id = tododb.id
+
+    # cerrando la session
+    session.close()
+
+    return f"create todo item with id: {id}"
 
 
 @app.get("/todo/{id}")
